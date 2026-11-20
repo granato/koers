@@ -159,14 +159,15 @@ function vGsm(){
  h+=`<div class="g-card g-note">Iedereen rijdt 2 reeksen binnen de eigen categorie. Punten per reeks: ${S.settings.pts.map((p,i)=>`${i+1}e = ${p}`).join(', ')}. De top 4 rijdt de finale, plaatsen 5–8 de kleine finale. Tijden zijn een schatting: luister naar de oproepen. 🚲</div>`;
  return h;
 }
-function render(){let h=vGsm();if(!ONLINE)h='<div class="offline">⚠ Geen verbinding. Je ziet de laatst gekende info'+(S.publishedAt?' van '+fmtT(S.publishedAt):'')+'.</div>'+h;
+function fmtS(ts){const d=new Date(ts);return fmtT(ts)+':'+String(d.getSeconds()).padStart(2,'0')}
+function render(){let h=vGsm();const upd=S.publishedAt||S.updated;if(upd)h=h.replace(/Info van \d\d:\d\d · ververst vanzelf/,'Laatste wijziging '+fmtT(upd)+(LASTOK?' · nagekeken '+fmtS(LASTOK):''));if(!ONLINE)h='<div class="offline">⚠ Geen verbinding. Je ziet de laatst gekende info'+(S.publishedAt?' van '+fmtT(S.publishedAt):'')+'.</div>'+h;
  const ae=document.activeElement;if(ae&&ae.classList&&ae.classList.contains('g-in')&&ae.value)return;document.getElementById('main').innerHTML=h;tick()}
 function tick(){const gc=document.getElementById('gclk');if(gc)gc.textContent=fmtT(Date.now())}
 function adopt(d){if(!d||d.empty||!Array.isArray(d.riders)||!Array.isArray(d.items))return false;
  d.settings=Object.assign({name:'Koers op rollen',start:'19:00',slot:4.5,pts:[4,3,2,1]},d.settings||{});S=d;return true}
 async function load(){try{const r=await fetch(RELAY+'?t='+Date.now(),{cache:'no-store'});if(!r.ok)throw new Error(r.status);const d=await r.json();ONLINE=true;
   if(d.empty){S.riders=[];S.items=[];render();return}
-  const v=d.publishedAt||d.relayedAt||0;if(v!==LASTV&&adopt(d)){LASTV=v;try{localStorage.setItem(CACHE,JSON.stringify(d))}catch(e){}render()}else if(!LASTOK)render();LASTOK=Date.now()}
+  const v=d.publishedAt||d.relayedAt||0;LASTOK=Date.now();if(v!==LASTV&&adopt(d)){LASTV=v;try{localStorage.setItem(CACHE,JSON.stringify(d))}catch(e){}}render()}
  catch(e){ONLINE=false;render()}}
 const A={
  gq(q){q=q.trim().toLowerCase();const el=document.getElementById('gres');if(!el)return;if(q.length<2){el.innerHTML='';return}
@@ -176,11 +177,14 @@ const A={
 };
 try{adopt(JSON.parse(localStorage.getItem(CACHE)||'null'))}catch(e){}
 if(S.items.length)render();
-load();
-setInterval(load,10000);
-setInterval(()=>{const ae=document.activeElement;if(!(ae&&ae.tagName==='INPUT'))render()},30000);
+/* Zuinig ophalen: elke 30 s, en enkel zolang iemand naar de pagina kijkt. Bij openen meteen. */
+const every=()=>1000*Math.min(60,Math.max(5,+(S.settings&&S.settings.pollSec)||10));let timer=null,lastLoad=0;
+function poll(){clearTimeout(timer);if(document.hidden)return;lastLoad=Date.now();load().finally(()=>{timer=setTimeout(poll,every())})}
+poll();
+document.addEventListener('visibilitychange',()=>{if(document.hidden){clearTimeout(timer)}else if(Date.now()-lastLoad>5000){poll()}else{clearTimeout(timer);timer=setTimeout(poll,every())}});
+window.addEventListener('focus',()=>{if(!document.hidden&&Date.now()-lastLoad>15000)poll()});
+setInterval(()=>{const ae=document.activeElement;if(!document.hidden&&!(ae&&ae.tagName==='INPUT'))render()},30000);
 setInterval(tick,5000);
-document.addEventListener('visibilitychange',()=>{if(!document.hidden)load()});
 </script>
 </body>
 </html>
