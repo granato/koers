@@ -178,7 +178,7 @@ const A={
 try{adopt(JSON.parse(localStorage.getItem(CACHE)||'null'))}catch(e){}
 if(S.items.length)render();
 /* Zuinig ophalen: elke 30 s, en enkel zolang iemand naar de pagina kijkt. Bij openen meteen. */
-const every=()=>1000*Math.min(60,Math.max(5,+(S.settings&&S.settings.pollSec)||10));let timer=null,lastLoad=0;
+const every=()=>1000*Math.min(60,Math.max(2,+(S.settings&&S.settings.pollSec)||10));let timer=null,lastLoad=0;
 function poll(){clearTimeout(timer);if(document.hidden)return;lastLoad=Date.now();load().finally(()=>{timer=setTimeout(poll,every())})}
 poll();
 document.addEventListener('visibilitychange',()=>{if(document.hidden){clearTimeout(timer)}else if(Date.now()-lastLoad>5000){poll()}else{clearTimeout(timer);timer=setTimeout(poll,every())}});
